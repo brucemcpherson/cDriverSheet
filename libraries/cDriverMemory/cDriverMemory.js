@@ -14,7 +14,7 @@ function getLibraryInfo () {
   return {
     info: {
       name:'cDriverMemory',
-      version:'2.1.0',
+      version:'2.2.0',
       key:'M96uVZRXXG_RY3c2at9V6tSz3TLx7pV4j',
       share:'https://script.google.com/d/101pVFakzEfvHquUFOmZafAzfBAGSotgH56IqVcGmWNBu7J0sweklqyCB/edit?usp=sharing',
       description:'in memory dbabstraction driver'
@@ -255,14 +255,14 @@ DriverMemory.prototype.query = function (queryOb,queryParams,keepIds) {
  * Driver.update()
  * @param {string} key the unique return in handleKeys for this object
  * @param {object} ob what to update it to
- * @param {string} optKeyName key name to match on (default 'key')
+ * @param {string} optPlant where to pant the key in the data if required
  * @return {object} results from selected handler
  **/
-DriverMemory.prototype.update = function (keys,obs,optKeyName) {
+DriverMemory.prototype.update = function (keys,obs,optPlant) {
   var self = this;
   var result =null;
   var enums = self.getParentHandler().getEnums();  
-  var keyName = optKeyName || 'key';
+  var keyName = 'key';
   var handleError='', handleCode=enums.CODE.OK
   
   if (!Array.isArray (obs)) obs = [obs];
@@ -271,20 +271,26 @@ DriverMemory.prototype.update = function (keys,obs,optKeyName) {
   if(keys.length !== obs.length && obs.length !== 1) {
     return  self.getParentHandler().makeResults (enums.CODE.KEYS_AND_OBJECTS,'objects- ' + obs.length + ' keys- ' + keys.length,result);
   }
-
+  
   try {
     // the data
     var content = self.getContent_(); 
 
+    // update each row matching a key
     keys.forEach (function(d,i) {
+      
+      // various strategies for matching the key
       var idx = find_(d,content,keyName);
-     
+      
+      // oops no match
       if (idx === -1) {
         handleCode = enums.CODE.NOMATCH;
       }
+      
+      // update with new data and carry forward the key in the data if needed
       else {
         content[idx].data =  obs.length === 1 ? obs[0] : obs[i];
-        content[idx].keys.checksum = cUseful.checksum(content[idx].data);
+        if (optPlant) content[idx].data[optPlant] = d;
       }
     });
     
@@ -329,6 +335,7 @@ DriverMemory.prototype.get = function (keys,keepIds,optKeyName) {
   // only returns one
   if (!Array.isArray(keys)) keys = [keys];
   // the data
+  
   result = self.getContent_().filter (function(d) {
     return keys.some( function(e) {
       return compareKeys_ (d , e ,keyName );
@@ -347,7 +354,7 @@ DriverMemory.prototype.get = function (keys,keepIds,optKeyName) {
       return d.data;
     });
   }
-  
+
   return self.getParentHandler().makeResults (handleCode,handleError,result,keepIds ? driverIds :null,keepIds ? handleKeys:null);
 };
 
@@ -382,16 +389,16 @@ DriverMemory.prototype.count = function (queryOb,queryParams) {
 * @param {Array.object} obs array of objects to write
 * @return {object} results from selected handler
 */
-DriverMemory.prototype.save = function (obs) {
+DriverMemory.prototype.save = function (obs,optKey) {
   var self = this;
   var enums= self.getParentHandler().getEnums();
   var handleError='', handleCode=enums.CODE.OK;
   var toAdd;
-  
+ 
   try {
     var oldContent = self.getContent_();
     toAdd = obs.map (function(d,i) {
-      return self.makeMemoryEntry (d,i);
+      return self.makeMemoryEntry (d,i+oldContent.length,optKey);
     });
 
     self.setContent_(oldContent.concat(toAdd));
@@ -400,44 +407,69 @@ DriverMemory.prototype.save = function (obs) {
       handleCode = enums.CODE.DRIVER_ASSERTION;
       handleError = 'after saving, length was ' + newContent.length + ' but should have been ' + oldContent.length + queryResults.handleKeys.length;
     }
-      
+    // so now we need to patch the row numbers  
   }
   catch(err) {
     handleError = cUseful.showError(err) + "(writing "+ self.getTableName()+" to memory)";
     handleCode =  enums.CODE.DRIVER;
   }
-  return self.getParentHandler().makeResults (handleCode,handleError,obs,undefined,self.getKeys(toAdd));
+  var tr = self.getParentHandler().makeResults (handleCode,handleError,obs,undefined,self.getKeys(toAdd))
+  return tr;
 }; 
 
 DriverMemory.prototype.getKeys = function (entries) {
  
    return (entries || []).map (function(d) {
-     return d.keys ? d.keys.key : d.key;
+     return d.keys ? {keys:d.keys} : {key:d.key};
    });
    
 }; 
 
-DriverMemory.prototype.makeMemoryEntry = function (item, index) {
+DriverMemory.prototype.makeMemoryEntry = function (item, index, optKey) {
   var self  = this;
- 
-  return { 
+  
+  // this is for preserving keys between sessions
+  var key;
+  
+  // this is transitional .. eventually I'll harmonize the key structure between delegated drivers since clean up at version 2.2
+  if (optKey) {
+    if (item.hasOwnProperty(optKey)) {
+      key = item[optKey];
+    }
+    else {
+      if (item.hasOwnProperty(keys)) {
+        key = item.keys.key;
+      }
+      else {
+        item = key.key;
+      }
+    }
+  }
+  else {
+    key = self.generateKey();
+  }
+  
+  if (!key) throw 'programming error generating key';
+  
+  var d = { 
     data: item,
     keys: {
-      key: self.generateKey(),
-      row: index+1,
-      checksum:cUseful.checksum(item)
+      key: key,
+      row: index+1
     }
   };
+  return d;
 }
 
 function compareKeys_ (item, key,keyName) {
-
-  return key[keyName] === item.keys[keyName]  ;
+  return (cUseful.isObject(key) ? key[keyName] : key) === item.keys[keyName]  ;
 }
+
 /**
  * DriverMemory.remove()
  * @param {object} queryOb some query object 
  * @param {object} queryParams additional query parameters (if available)
+ * @param {object} optKeyName optional keyname to match on
  * @return {object} results from selected handler
  **/  
 DriverMemory.prototype.remove = function (queryOb,queryParams,optKeyName) {
@@ -465,6 +497,41 @@ DriverMemory.prototype.remove = function (queryOb,queryParams,optKeyName) {
         handleCode = enums.CODE.DRIVER_ASSERTION;
         handleError = 'after removing, length was ' + newContent.length + ' but should have been ' + oldContent.length - queryResults.handleKeys.length;
       }
+    }
+  }
+  catch(err) {
+    handleError = cUseful.showError(err) + "(writing "+ self.getTableName()+" to memory)";
+    handleCode =  enums.CODE.DRIVER;
+  }
+  
+  return self.getParentHandler().makeResults (handleCode,handleError);
+};
+
+/**
+ * DriverMemory.removeByIds()
+ * @param {Array.string} keys array of keys to match
+ * @param {Array.string} optKeyName optional key name to target
+ * @return {object} results from selected handler
+ */  
+DriverMemory.prototype.removeByIds = function (keys,optKeyName) {
+  var self = this;
+  var enums= self.getParentHandler().getEnums();
+  var result =null;
+  var handleError='', handleCode=enums.CODE.OK;
+  var keyName = optKeyName || 'key';
+  
+  try {
+    // get the current content
+    var oldContent = self.getContent_();
+    self.setContent_(oldContent.filter( function(d) {
+      return !keys.some( function (k) {
+        return compareKeys_ (d , k ,keyName ) ;
+      });
+    }));
+    var newContent = self.getContent_();
+    if (oldContent.length != keys.length + newContent.length) {
+      handleCode = enums.CODE.DRIVER_ASSERTION;
+      handleError = 'after removing, length was ' + newContent.length + ' but should have been ' + oldContent.length - keys.length;
     }
   }
   catch(err) {
