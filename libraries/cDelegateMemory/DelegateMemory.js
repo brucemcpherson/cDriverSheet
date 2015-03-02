@@ -9,7 +9,7 @@ function getLibraryInfo () {
   return {
     info: {
       name:'cDelegateMemory',
-      version:'2.0.1',
+      version:'2.2.0',
       key:'MyIN8WHN1Uf3EG-obHsjrAyz3TLx7pV4j',
       description:'database delegation abstraction driver',
       url:'https://script.google.com/d/1vTqRouwf8VVyz9lSdqMBhfuqUM0po3GQCwfjbTlCqOKB2QjGAFbum0dL/edit?usp=sharing'
@@ -71,33 +71,59 @@ var DelegateMemory = function (delegator) {
       });
       
   };
-   
+  
+  /**
+   * DriverMemory.removeByIds()
+   * @param {Array.object} keys key objects returned by handleKeys
+   * @param {Array.string} optKeyName optional key name to target
+   * @return {object} results from selected handler
+   */ 
+  self.removeByIds = function (keys,optKeyName) {
+  
+    return parentHandler_.writeGuts('remove', 
+      
+      function (bypass) {
+        var mem = driver_.getMem();
+        var r = mem.removeByIds (keys,optKeyName);
+        return r.handleCode >=0 ? driver_.putBack (mem) : r;
+      },
+      
+      function (bypass) {
+        driver_.getTransactionBox().dirty = true;
+        return driver_.getTransactionBox().content.removeByIds(keys,optKeyName);
+      });
+      
+  };
+
  /**
   * DelegateMemory.save()
   * @param {Array.object} obs array of objects to write
   * @return {object} results from selected handler
   */ 
-  self.save = function (obs,mem) {
+  self.save = function (obs,mem,optKey) {
 
-
+    
     return parentHandler_.writeGuts('save', 
       
+      // what to do if we're not in a transaction
       function (bypass) {
         // we need to append these obs
         var memory = mem || new cDriverMemory.DriverMemory(parentHandler_, driver_.getSiloId());
+        
         var r = memory.save(obs);
         if (r.handleCode <0) return r;
 
         // write this using the appropriate driver
         var p = driver_.putBack (memory,true);
-        
+
         // now return the result of the writeback, along with the keys of the newly inserted items
-        return parentHandler_.makeResults (p.handleCode, p.handleError , obs ,undefined, r.handleKeys);
+        return parentHandler_.makeResults (p.handleCode, p.handleError , obs ,undefined, p.handleKeys && p.handleKeys.length ? p.handleKeys : r.handleKeys);
       },
       
+      // what to do if we're in a transaction
       function (bypass) {
         driver_.getTransactionBox().dirty = true;
-        return driver_.getTransactionBox().content.save (obs);
+        return driver_.getTransactionBox().content.save (obs,optKey);
       });
       
 
@@ -110,8 +136,7 @@ var DelegateMemory = function (delegator) {
    * @return {object} results from selected handler
    */
   self.count = function (queryOb,queryParams) {
-  
-  
+
     return parentHandler_.readGuts('count', 
       function (bypass) {
         return driver_.getMem().count ( queryOb,queryParams) ;
@@ -127,11 +152,17 @@ var DelegateMemory = function (delegator) {
   self.get = function (keys) {
   
     return parentHandler_.readGuts('get', 
+    
+      // what to do if we're not in a transaction
       function (bypass) {
-        return driver_.getGuts(keys).results;
+        var r = driver_.getGuts(keys,true);
+        // some drivers have a more complicated return .. im only interested in the .results if there is one.
+        return r.results ? r.results : r;
       },
+      
+      // what do do if we are in a transaction
       function (bypass) {
-        return  driver_.getMem().get(keys)
+        return  driver_.getMem().get(keys,true);
       });
 
   };
@@ -142,15 +173,19 @@ var DelegateMemory = function (delegator) {
    * @param {object} obs what to update it to
    * @return {object} results from selected handler
    */
-  self.update = function (keys,obs) {
+  self.update = function (keys,obs,optPlant) {
 
     return parentHandler_.writeGuts('update', 
+      
+      // what to do if we're not in a transaction
       function (bypass) {
-        return driver_.updateGuts (keys,obs);
+        return driver_.updateGuts (keys,obs,optPlant);
       },
+      
+      // what do do if we are in a transaction
       function (bypass) {
         driver_.getTransactionBox().dirty = true;
-        return driver_.getTransactionBox().content.update (keys,obs,'key');
+        return driver_.getTransactionBox().content.update (keys,obs,optPlant);
       });
 
     
@@ -180,7 +215,7 @@ var DelegateMemory = function (delegator) {
   * @return {object} a normal result package
   */ 
   self.commitTransaction = function (id) {
-    Logger.log('committing');
+    
     // double check we are committing the correct transaction
     if (!parentHandler_.isTransaction (id)) {
       return parentHandler_.makeResults (enums_.CODE.TRANSACTION_ID_MISMATCH);
@@ -247,15 +282,19 @@ var DelegateMemory = function (delegator) {
 
     var memory = new cDriverMemory.DriverMemory(parentHandler_, driver_.getSiloId());
     // generate the keys
+
     var keyed =  content ? content.map (function (d,i) {
-            var k = memory.makeMemoryEntry (d.data,i);
-            // retain the original key if there was one
-            if (d.keys) {
-              k.keys.key = d.keys.key;
-            }
-            return k;
-          }) : null;
-    
+      var k = memory.makeMemoryEntry (d.data,i);
+      // retain the original key if there was one
+      if (d.keys) {
+        k.keys.key = d.keys.key;
+      }
+      else if (d.key) {
+        k.keys.key = d.key;
+      }
+      return k;
+    }) : null;
+   
     return keyed;
   };
   
