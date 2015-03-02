@@ -17,7 +17,7 @@ function getLibraryInfo () {
   return {
     info: {
       name:'cDriverSheet',
-      version:'2.0.5',
+      version:'2.2.0',
       key:'Mrckbr9_w7PCphJtOzhzA_Cz3TLx7pV4j',
       description:'database abstraction driver for Google Sheets',
       url:'https://script.google.com/d/18fvqHqSs2YwU2ZMUcx6-9GE30u6i663rZTz7K0xNsStHoiJcs487JvN-/edit?usp=sharing'
@@ -199,6 +199,14 @@ var DriverSheet = function (handler,sheetName,ssId) {
   */
   self.getContent = function () {
     // get data and headings
+    return self.getContentAll().data;
+  };
+  
+ /** get the contents of the file
+  * @return {Object} the parsed content of the file
+  */
+  self.getContentAll = function () {
+    // get data and headings
     
     var contents = self.getSheetContents ();
 
@@ -215,9 +223,9 @@ var DriverSheet = function (handler,sheetName,ssId) {
     });
     
     
-    return obs.map(function(d) {
+    return {data: obs.map(function(d) {
       return new cFlatten.Flattener().unFlatten(d.data);
-    });;
+    }), contents: contents };
   };
   
   
@@ -234,15 +242,45 @@ var DriverSheet = function (handler,sheetName,ssId) {
       return handle.getDataRange().getValues();
     });
     
-    var contents = {};
+    var content = {};
 
     // the headings - you get wierd results for an empty row
-    contents.headings = d && d.length && ((d[0].length  && d[0][0] !== '') || d.length > 1) ? d[0] : [];
-        
-    if (d && d.length > 1)  d.shift();
-    contents.values = contents.headings.length && d && d.length ? d : [];
+    content.headings = d && d.length && ((d[0].length  && d[0][0] !== '') || d.length > 1) ? d[0] : [];
+
+    // the data
+    if (d && d.length > 1)  { 
+      d.shift();
+      content.values = d;
+    }
+    else {
+      content.values = [];
+    }
     
-    return contents;
+    
+    // if we don't have a key column, add it and restart - this section is to automatically upgrade old sheets with no key column
+    if (content.headings.indexOf(enums.SETTINGS.HIDDEN_KEY) === -1) {
+        content.headings.push(enums.SETTINGS.HIDDEN_KEY);
+        parentHandler.rateLimitExpBackoff ( function () { 
+          return handle.getRange(1,1,1,content.headings.length).setValues([content.headings]);
+        });
+        //and just expand out the data with an extra column
+        content.values.forEach(function(r) {
+          r.push(parentHandler.generateUniqueString());
+        });
+        
+        // values update with one time keys
+        if (content.values.length) {
+          parentHandler.rateLimitExpBackoff ( function () { 
+            return handle
+            .getRange(2, content.headings.length , content.values.length , 1)
+            .setValues(content.values.map(function(r) {
+              return [r[content.headings.length-1]];
+            }));
+          });
+        }   
+    }
+    
+    return content;
   };
 
   /**
@@ -267,6 +305,7 @@ var DriverSheet = function (handler,sheetName,ssId) {
     return self;
   };
   
+
   /**
    * --------------------------------
    * DriverSheet.generateHeadings ()
@@ -362,7 +401,7 @@ var DriverSheet = function (handler,sheetName,ssId) {
     append = optAppend || false;
     
     var newContent = mem.takeContent();
-
+    
     var sheetContents = self.getSheetContents();
     var dr = handle.getDataRange();
     
@@ -417,7 +456,7 @@ var DriverSheet = function (handler,sheetName,ssId) {
     }
     self.appFlush();
     
-    return parentHandler.makeResults(code,err);
+    return parentHandler.makeResults(code,err,newFlat);
 
   };
   
@@ -445,7 +484,7 @@ var DriverSheet = function (handler,sheetName,ssId) {
   * @return {DriverMemory} mem the memory driver object
   */
   self.take = function (mem) {
-    mem.save ( self.getContent() || [] );
+    mem.save ( self.getContent() || [] , enums.SETTINGS.HIDDEN_KEY );
     return mem;
   }; 
   
@@ -462,6 +501,22 @@ var DriverSheet = function (handler,sheetName,ssId) {
   };
   
   /**
+   * DriverSheet.splitKeys()
+   * take a result and remove special fields and move handlekeys
+   * @param {object} qResult standard result
+   * @return {object} modified standard result
+   */
+  self.splitKeys = function (qResult) {
+    
+    if (qResult.handleCode >=0) {
+      var s = parentHandler.dropFields ( [enums.SETTINGS.HIDDEN_KEY] , enums.SETTINGS.HIDDEN_KEY , qResult.data);
+      qResult.data = s.obs;
+      qResult.handleKeys = s.keys;
+    }
+    
+    return qResult;
+  };
+  /**
    * DriverSheet.query()
    * @param {object} queryOb some query object 
    * @param {object} queryParams additional query parameters (if available)
@@ -469,7 +524,7 @@ var DriverSheet = function (handler,sheetName,ssId) {
    * @return {object} results from selected handler
    */
   self.query = function (queryOb,queryParams,keepIds) {
-    return delegate.query(queryOb,queryParams,keepIds);
+    return self.splitKeys ( delegate.query(queryOb,queryParams,keepIds)) ;
   };
 
   self.getTransactionBox = function () {
@@ -492,7 +547,23 @@ var DriverSheet = function (handler,sheetName,ssId) {
   * @return {object} results from selected handler
   */ 
   self.save = function (obs) {
-    return delegate.save(self.unFlatten(obs));
+    // & add a key to each obs
+    
+    var u = self.unFlatten(obs);
+    if(u.some(function(r) {
+      if (r[enums.SETTINGS.HIDDEN_KEY]) {
+        return true;
+      }
+      else {
+        r[enums.SETTINGS.HIDDEN_KEY] = parentHandler.generateUniqueString();
+      }
+    })) {
+      // already had a key - shouldnt be
+      return parentHandler.makeResults( enums.CODE.KEY_ASSERTION);
+    }
+    else {
+      return self.splitKeys(delegate.save(u,undefined, enums.SETTINGS.HIDDEN_KEY));
+    }
   };
 
   /**
@@ -523,9 +594,19 @@ var DriverSheet = function (handler,sheetName,ssId) {
    * @return {object} results from selected handler
    */
   self.get = function (keys) {
-    return delegate.get(keys);
+    return self.splitKeys(delegate.get(keys));
   };
-
+  
+  
+  /**
+   * Driver.removeById()
+   * @param {string} keys key to remove
+   * @return {object} results from selected handler
+   */ 
+  self.removeByIds = function (keys) {
+    return delegate.removeByIds (keys);
+  };
+  
   /**
    * getGuts_()
    * @param {Array.object} keys the unique return in handleKeys for this object
@@ -533,29 +614,13 @@ var DriverSheet = function (handler,sheetName,ssId) {
    */
   self.getGuts = function (keys) {
 
-     if (!self.isTransaction(parentHandler.getTransactionId())) {
-       var contents = self.getSheetContents();
-
-       // get specific rows
-       var selected = self.unFlatten(keys.map(function(d) {
-         return self.objectify(contents.headings,contents.values[d.row-1]);
-       }));
-       
-       
-       // check they havent changed
-       if (selected.every (function (d,i) {
-         return cUseful.checksum(d) === keys[i].checksum; 
-       })) {
-         return {results:parentHandler.makeResults(enums.CODE.OK,'',selected),contents:contents};
-       }
-       else {
-         return {results:parentHandler.makeResults(enums.CODE.CHECKSUM,'get failed'),contents:contents}; 
-       }
-    }
-    else {
-
-      return {results:transactionBox_.content.get( keys,'key'),contents:null};
-    }
+    // filder on matching keys
+    var selected = self.getContent().filter(function(d) {
+      return keys.indexOf(d[enums.SETTINGS.HIDDEN_KEY]) !== -1;
+    });
+   
+      
+    return {results:parentHandler.makeResults(enums.CODE.OK,'',selected)};
 
   };
 
@@ -566,47 +631,64 @@ var DriverSheet = function (handler,sheetName,ssId) {
    * @return {object} results from selected handler
    */
   self.update = function (keys,obs) {
-    return delegate.update (keys,obs);
+    return delegate.update (keys,obs,enums.SETTINGS.HIDDEN_KEY);
   };
 
-  self.updateGuts = function (keys,obs) {
-      
-    // get the data
-    var result = self.getGuts(keys);
+  self.updateGuts = function (keys,obs,plant) {
+        
+
+    // sort out the new obs in case any new columns added
+    var memory = new cDriverMemory.DriverMemory(parentHandler, siloId);
+    var r = memory.save(obs);
     
-    if (result.results.handleCode >=0) {
+    // write it back
+    if (r.handleCode >=0 && obs.length) {
+      var newContent = memory.takeContent();
       
-      var memory = new cDriverMemory.DriverMemory(parentHandler, siloId);
-      var r = memory.save(obs);
+      // these are the replacement obs
+      var newFlat = newContent.map(function(d,i) {
+        
+        // legacy support for both models - should be d.data - test can likely be removed in version 2.3
+        var dPlace = d.data? d.data : d;
+        
+        // restore the original key
+        dPlace[plant] = keys[i];
+        
+        // flatten
+        return new cFlatten.Flattener().flatten(dPlace);
+        
+      });
       
-      // write it back
-      if (r.handleCode >=0) {
-        var newContent = memory.takeContent();
+      var allContent = self.getContentAll();
+      
+      // see if we have any updated headings       
+      var newHeads = self.addHeadings (allContent.contents.headings, newFlat);
+      var newValues = self.valueIfy  (newHeads,  newFlat);
+            
+      // if any headings have changed
+      self.updateHeaders (allContent.contents.headings, newHeads);
         
-        var newFlat = newContent.map(function(d) {
-          return new cFlatten.Flattener().flatten(d.data? d.data : d);
-        });
-        
-        
-        var newHeads = self.addHeadings (result.contents.headings, newFlat);
-        var newValues = self.valueIfy  (newHeads,  newFlat);
-        
-        // if any headings have changed
-        self.updateHeaders (result.contents.headings, newHeads);
-        
-        // now write the new data
-        newValues.forEach (function (d,i) {
-          parentHandler.rateLimitExpBackoff ( function () { 
-            handle.getRange (keys[i].row +1 ,1, 1,d.length).setValues([d]);
-          })
-        });
-        
-        self.appFlush(); 
+      // now write the new data
+      var rc = 0;
+      allContent.data.forEach(function(d,i) {
+        if(keys.indexOf(d[plant]) !== -1 ) {
+          // we've found a match
+          var newRow = newValues[rc++];
+          parentHandler.rateLimitExpBackoff ( function () {
+            handle.getRange (i + 2 ,1, 1,newRow.length).setValues([newRow]);
+          });
+        }
+      });
+    
+      self.appFlush();
+      
+      // check we got everything
+      if (rc !== keys.length) {
+        r = parentHandler.makeResults (enums.CODE.KEYS_AND_OBJECTS);
       }
-      result = r;
     }
     
-    return result;
+    return r;
 
   };
   
