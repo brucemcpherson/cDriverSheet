@@ -7,7 +7,7 @@ function getLibraryInfo () {
   return { 
     info: {
       name:'cFlatten',
-      version:'2.0.1',
+      version:'2.2.0',
       key:'MqxKdBrlw18FDd-X5zQLd7yz3TLx7pV4j',
     },
     dependencies:[
