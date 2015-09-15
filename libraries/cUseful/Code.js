@@ -12,7 +12,7 @@ function getLibraryInfo () {
   return {
     info: {
       name:'cUseful',
-      version:'2.2.10',
+      version:'2.2.13',
       key:'Mcbr-v4SsYKJP7JMohttAZyz3TLx7pV4j',
       share:'https://script.google.com/d/1EbLSESpiGkI3PYmJqWh3-rmLkYKAtCNPi1L2YCtMgo2Ut8xMThfJ41Ex/edit?usp=sharing',
       description:'various dependency free useful functions'
@@ -103,7 +103,7 @@ function checksum(o) {
  **/
 function isObject (obj) {
   return obj === Object(obj);
-};
+}
 
 /** 
  * clone
@@ -142,7 +142,7 @@ function rateLimitExpBackoff ( callBack, sleepFor ,  maxAttempts, attempts , opt
             "Exception: Internal error.",
             "Exception: ???????? ?????: DriveApp.",
             TRYAGAIN
-            
+
            ]
             .some(function(e){
               return  errorText.toString().slice(0,e.length) == e  ;
@@ -597,4 +597,67 @@ function validateArgs (funcArgs , funcTypes , optFail) {
     }
     return state;
   }
+}
+/**
+ * create a column label for sheet address, starting at 1 = A, 27 = AA etc..
+ * @param {number} columnNumber the column number
+ * @return {string} the address label 
+ */
+function columnLabelMaker (columnNumber,s) {
+  s = String.fromCharCode(((columnNumber-1) % 26) + 'A'.charCodeAt(0)) + ( s || '' );
+  return columnNumber > 26 ? columnLabelMaker ( Math.floor( (columnNumber-1) /26 ) , s ) : s;
+}
+/**
+* general function to walk through a branch
+* @param {object} parent the head of the branch
+* @param {function} nodeFunction what to do with the node
+* @param {function} getChildrenFunctiontion how to get the children
+* @param {number} depth optional depth of node
+* @return {object} the parent for chaining
+*/
+function traverseTree (parent, nodeFunction, getChildrenFunction, depth) {
+  
+  depth = depth || 0;
+  // if still some to do
+  if (parent) {
+    
+    // do something with the header
+    nodeFunction (parent, depth++);
+    
+    // process the children
+    (getChildrenFunction(parent) || []).forEach ( function (d) {
+      traverseTree (d , nodeFunction , getChildrenFunction, depth);
+    });
+    
+  }
+  return parent;
+}
+/**
+ * takes a function and its arguments, runs it and times it
+ * @param {func} the function
+ * @param {...} the rest of the arguments
+ * @return {object} the timing information and the function results
+ */
+function timeFunction () {
+
+    var timedResult = {
+      start: new Date().getTime(),
+      finish: undefined,
+      result: undefined,
+      elapsed:undefined
+    }
+    // turn args into a proper array
+    var args = Array.prototype.slice.call(arguments);
+    
+    // the function name will be the first argument
+    var func = args.splice(0,1)[0];
+    
+    // the rest are the arguments to fn - execute it
+    timedResult.result = func.apply(func, args); 
+    
+    // record finish time
+    timedResult.finish = new Date().getTime();
+    timedResult.elapsed = timedResult.finish - timedResult.start;
+    
+    return timedResult;
 }
