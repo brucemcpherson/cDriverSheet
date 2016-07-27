@@ -7,7 +7,7 @@ function getLibraryInfo () {
   return { 
     info: {
       name:'cFlatten',
-      version:'2.2.0',
+      version:'2.2.1',
       key:'MqxKdBrlw18FDd-X5zQLd7yz3TLx7pV4j',
     },
     dependencies:[
@@ -17,6 +17,12 @@ function getLibraryInfo () {
 var Flattener = function(optObKeep) {
   var self = this;
   self.obKeep = optObKeep || null;
+  self.keepDates = false;
+  self.setKeepDates = function (keep) {
+    self.keepDates = keep;
+    return self;
+  };
+  
   return self;          
 };
 
@@ -131,11 +137,12 @@ Flattener.prototype.objectSplitKeys  = function (ob,obArray,keyArray) {
   //[{key:[a], value:1},{key:[b], value:2} , {key:[c,d], value:3}, {key:[c,e,f], value:25}]
   
   if (self.isObject(ob)) {
+
     Object.keys(ob).forEach ( function (k) {
       var ka = keyArray ? keyArray.slice(0) : [];
       ka.push(k);
-      
-      if(self.isObject(ob[k])  && (!self.obKeep || !ob[k][self.obKeep]) ) {
+
+      if(self.isObject(ob[k])  && (!self.obKeep || !ob[k][self.obKeep]) && ( !self.keepDates || !self.isDateObject(ob[k]))) {
         self.objectSplitKeys (ob[k],obArray,ka);
       }
       else {
@@ -167,7 +174,10 @@ Flattener.prototype.isNumber = function (s) {
   return !isNaN(parseInt(s,10)) ;
 };
 
-  
+Flattener.prototype.isDateObject = function (ob) {
+  return this.isObject(ob) && ob.constructor && ob.constructor.name === "Date";
+};
+
 /** get headings from an array of objects by flattening and sorting all the keys found
  * @parameter {Array.object} obs an array of objects
  * @return {Array.object} an array of heading values
