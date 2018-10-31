@@ -1,5 +1,5 @@
 # Google Apps Script Project: cDriverSheet
-This repo (cDriverSheet) was automatically updated on 20 November 2017 12:49:02 GMT by GasGit
+This repo (cDriverSheet) was automatically updated on 31 October 2018 11:38:33 GMT by GasGit
 
 For more information see the [desktop liberation site](http://ramblings.mcpher.com/Home/excelquirks/drivesdk/gettinggithubready "desktop liberation") or [contact me on G+](https://plus.google.com/+BruceMcpherson "Bruce McPherson - GDE")
 ## Details for Apps Script project cDriverSheet
@@ -11,21 +11,24 @@ The shared link for [cDriverSheet is here](https://script.google.com/d/18fvqHqSs
 --- | --- 
 cDriverSheet| server_js
 forPublishing| server_js
+appsscript| json
 ### Directly referenced libraries
 *library*|*identifier*|*key*|*version*|*dev mode*|*source*|
 --- | --- | --- | --- | --- | --- 
-cFlatten| cFlatten|MqxKdBrlw18FDd-X5zQLd7yz3TLx7pV4j|8|no|[here](libraries/cFlatten "library source")
-cUseful| cUseful|Mcbr-v4SsYKJP7JMohttAZyz3TLx7pV4j|23|no|[here](libraries/cUseful "library source")
-cDelegateMemory| cDelegateMemory|MyIN8WHN1Uf3EG-obHsjrAyz3TLx7pV4j|10|no|[here](libraries/cDelegateMemory "library source")
-cDriverMemory| cDriverMemory|M96uVZRXXG_RY3c2at9V6tSz3TLx7pV4j|10|no|[here](libraries/cDriverMemory "library source")
+cDelegateMemory| cDelegateMemory|1vTqRouwf8VVyz9lSdqMBhfuqUM0po3GQCwfjbTlCqOKB2QjGAFbum0dL|10|no|[here](libraries/cDelegateMemory "library source")
+cFlatten| cFlatten|12actArnmhP0hZTQng9Ysav1ZA3xfrkm1JA024mxDx4x4MEcPlc8Y2YDY|8|no|[here](libraries/cFlatten "library source")
+cDriverMemory| cDriverMemory|101pVFakzEfvHquUFOmZafAzfBAGSotgH56IqVcGmWNBu7J0sweklqyCB|10|no|[here](libraries/cDriverMemory "library source")
+cUseful| cUseful|1EbLSESpiGkI3PYmJqWh3-rmLkYKAtCNPi1L2YCtMgo2Ut8xMThfJ41Ex|23|no|[here](libraries/cUseful "library source")
 ### All dependencies and sub dependencies
 *library*|*identifier*|*key*|*version*|*dev mode*|*source*|
 --- | --- | --- | --- | --- | --- 
-cFlatten| cFlatten|MqxKdBrlw18FDd-X5zQLd7yz3TLx7pV4j|8|no|[here](libraries/cFlatten "library source")
-cUseful| cUseful|Mcbr-v4SsYKJP7JMohttAZyz3TLx7pV4j|23|no|[here](libraries/cUseful "library source")
-cDelegateMemory| cDelegateMemory|MyIN8WHN1Uf3EG-obHsjrAyz3TLx7pV4j|10|no|[here](libraries/cDelegateMemory "library source")
-cDriverMemory| cDriverMemory|M96uVZRXXG_RY3c2at9V6tSz3TLx7pV4j|12|no|[here](libraries/cDriverMemory "library source")
+cDelegateMemory| cDelegateMemory|1vTqRouwf8VVyz9lSdqMBhfuqUM0po3GQCwfjbTlCqOKB2QjGAFbum0dL|10|no|[here](libraries/cDelegateMemory "library source")
+cDriverMemory| cDriverMemory|101pVFakzEfvHquUFOmZafAzfBAGSotgH56IqVcGmWNBu7J0sweklqyCB|12|no|[here](libraries/cDriverMemory "library source")
+cUseful| cUseful|1EbLSESpiGkI3PYmJqWh3-rmLkYKAtCNPi1L2YCtMgo2Ut8xMThfJ41Ex|77|no|[here](libraries/cUseful "library source")
+cFlatten| cFlatten|12actArnmhP0hZTQng9Ysav1ZA3xfrkm1JA024mxDx4x4MEcPlc8Y2YDY|8|no|[here](libraries/cFlatten "library source")
 ### Enabled Google Services
 no libraries discovered
-###Need more detail ?
+### Scopes required
+no scopes discovered
+### Need more detail ?
 You can see [full project info as json here](info.json)
