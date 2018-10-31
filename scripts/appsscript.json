@@ -1,0 +1,23 @@
+{
+  "timeZone": "Europe/London",
+  "dependencies": {
+    "libraries": [{
+      "userSymbol": "cDelegateMemory",
+      "libraryId": "1vTqRouwf8VVyz9lSdqMBhfuqUM0po3GQCwfjbTlCqOKB2QjGAFbum0dL",
+      "version": "10"
+    }, {
+      "userSymbol": "cFlatten",
+      "libraryId": "12actArnmhP0hZTQng9Ysav1ZA3xfrkm1JA024mxDx4x4MEcPlc8Y2YDY",
+      "version": "8"
+    }, {
+      "userSymbol": "cDriverMemory",
+      "libraryId": "101pVFakzEfvHquUFOmZafAzfBAGSotgH56IqVcGmWNBu7J0sweklqyCB",
+      "version": "10"
+    }, {
+      "userSymbol": "cUseful",
+      "libraryId": "1EbLSESpiGkI3PYmJqWh3-rmLkYKAtCNPi1L2YCtMgo2Ut8xMThfJ41Ex",
+      "version": "23"
+    }]
+  },
+  "exceptionLogging": "STACKDRIVER"
+}
