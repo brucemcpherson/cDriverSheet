@@ -289,6 +289,7 @@ DriverMemory.prototype.update = function (keys,obs,optPlant) {
       
       // update with new data and carry forward the key in the data if needed
       else {
+        
         content[idx].data =  obs.length === 1 ? obs[0] : obs[i];
         if (optPlant) content[idx].data[optPlant] = d;
       }
