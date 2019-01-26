@@ -261,9 +261,9 @@ var DelegateMemory = function (delegator) {
     
     try {
       parentHandler_.rateLimitExpBackoff ( function () { 
+
         return driver_.writeContent(mem.takeContent().map (function (d) {
-          // compatibility with previous version
-          return {data:d.data , key: d.keys ? d.keys.key : d.key};
+          return d ; // old versions.. {data:d.data , key: d.keys ? d.keys.key : d.key};
         }));
       });
       return parentHandler_.makeResults(enums_.CODE.OK);
