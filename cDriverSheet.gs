@@ -501,7 +501,7 @@ var DriverSheet = function (handler,sheetName,ssId) {
   };
   
   /**
-   * DriverSheet.splitKeys()
+   * DriverSheet.fg()
    * take a result and remove special fields and move handlekeys
    * @param {object} qResult standard result
    * @return {object} modified standard result
